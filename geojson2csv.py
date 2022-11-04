@@ -4,29 +4,32 @@ import argparse
 import os
 import datetime
 import brotli
-import logging
 import requests
 
 
-def decode(args, filename):
+def decode(filename):
     basename = "output"
     if filename.startswith("https://") or filename.startswith("http://"):
         r = requests.get(filename, allow_redirects=True)
         s = r.content
-        basename = os.path.basename(r.request.path_url).rsplit(".",2)[0]
+        basename = os.path.basename(r.request.path_url).rsplit(".", 2)[0]
     else:
         with open(filename, "rb") as f:
             s = f.read()
         if filename.endswith(".br"):
             s = brotli.decompress(s)
-        basename = os.path.basename(filename).rsplit(".",2)[0]
+        basename = os.path.basename(filename).rsplit(".", 2)[0]
 
     geojson_data = json.loads(s)
-    if geojson_data['type'] == 'FeatureCollection':
+    if geojson_data["type"] == "FeatureCollection":
         with open(basename + ".csv", "w") as f:
-            parse_feature_collection(geojson_data['features'], f)
+            parse_feature_collection(geojson_data["features"], f)
     else:
-        print("Can currently only parse FeatureCollections, but I found ", geojson_data['type'], " instead")
+        print(
+            "Can currently only parse FeatureCollections, but I found ",
+            geojson_data["type"],
+            " instead",
+        )
 
 
 def parse_feature_collection(features, outfile):
@@ -35,43 +38,44 @@ def parse_feature_collection(features, outfile):
     count = 0
     header = []
     for feature in features:
-        if feature["geometry"]["type"] != "Point":  # skip LineString in radiosonde ascent
+        if (
+            feature["geometry"]["type"] != "Point"
+        ):  # skip LineString in radiosonde ascent
             continue
         # append a readable timestamp (time is just Unix epoch)
-        feature['properties']['datetime'] = datetime.datetime.fromtimestamp(feature['properties']['time'] )
+        feature["properties"]["datetime"] = datetime.datetime.fromtimestamp(
+            feature["properties"]["time"]
+        )
         if count == 0:
-            header = list(feature['properties'].keys())
+            header = list(feature["properties"].keys())
             # append coords
-            header.extend(['lon','lat','alt'])
+            header.extend(["lon", "lat", "alt"])
             csvwriter.writerow(header)
             count += 1
-        csvwriter.writerow(feature_to_row(feature, feature['properties'].keys()))
+        csvwriter.writerow(feature_to_row(feature, feature["properties"].keys()))
     outfile.close()
+
 
 def feature_to_row(feature, header):
     l = []
     for k in header:
-        l.append(feature['properties'][k])
-    if feature['geometry']['type'] != 'Point':
-        raise RuntimeError("Expecting point type, but got ", feature['geometry']['type'])
-    coords = feature['geometry']['coordinates']
-    assert(len(coords)== 3)
+        l.append(feature["properties"][k])
+    if feature["geometry"]["type"] != "Point":
+        raise RuntimeError(
+            "Expecting point type, but got ", feature["geometry"]["type"]
+        )
+    coords = feature["geometry"]["coordinates"]
+    assert len(coords) == 3
     l.extend(coords)
     return l
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(prog="geojson2csv.py",
-                                     description='Convert GeoJSON to CSV')
-    parser.add_argument("-v", "--verbose", action="store_true", default=False)                                  
+    parser = argparse.ArgumentParser(
+        prog="geojson2csv.py", description="Convert GeoJSON to CSV"
+    )
     parser.add_argument("files", nargs="*")
+    args = parser.parse_args()
 
-    args = parser.parse_args()         
-    level = logging.WARNING
-    if args.verbose:
-        level = logging.DEBUG
-
-    logging.basicConfig(level=level)
     for f in args.files:
-        decode(args, f)
-
+        decode(f)
