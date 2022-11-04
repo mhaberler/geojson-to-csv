@@ -3,13 +3,13 @@ A basic GeoJSON to CSV parser
 
 ## Usage
 
-usage: geojson2csv.py [-h] [infile] [outfile]
 
-Convert simple GeoJSONs to CSVs
+usage: geojson2csv.py [-h] [files [files ...]]
+
+Convert GeoJSON to CSV
 
 positional arguments:
-  infile
-  outfile
+  files
 
 optional arguments:
   -h, --help  show this help message and exit
