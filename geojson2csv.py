@@ -72,7 +72,18 @@ def feature_to_row(feature, header):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        prog="geojson2csv.py", description="Convert GeoJSON to CSV"
+        prog="geojson2csv.py",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description="Convert GeoJSON to CSV",
+        epilog="""\
+<file> can be a local filename, or a http://<uri>  
+If the filename has a .br extension, it will be automatically brotli-decompressed.
+The result will be written to <basename of file>.csv .
+
+Examples:
+    python geojson2csv.py 11240_20221104_040000.geojson
+    python geojson2csv.py https://ims.windy.com/radiosonde/data/station/11/035/2022/11/fm94/11035_20221104_120000.geojson.br
+    """,
     )
     parser.add_argument("files", nargs="*")
     args = parser.parse_args()
