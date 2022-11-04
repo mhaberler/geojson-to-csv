@@ -3,6 +3,7 @@ import csv
 import argparse
 import sys
 import os
+import datetime
 
 
 def main(args):
@@ -26,10 +27,13 @@ def parse_feature_collection(features, outfile):
     # some features change their order (we can't rely on it!)
     header = []
     for feature in features:
+        if feature["geometry"]["type"] != "Point":
+            continue
+        feature['properties']['datetime'] = datetime.datetime.fromtimestamp(feature['properties']['time'] )
         if count == 0:
             header = list(feature['properties'].keys())
             # We're going to assume the feature is just a point for this stage
-            header.extend(['px','py'])
+            header.extend(['lon','lat','alt'])
             csvwriter.writerow(header)
             count += 1
         csvwriter.writerow(feature_to_row(feature, feature['properties'].keys()))
@@ -42,7 +46,7 @@ def feature_to_row(feature, header):
     if feature['geometry']['type'] != 'Point':
         raise RuntimeError("Expecting point type, but got ", feature['geometry']['type'])
     coords = feature['geometry']['coordinates']
-    assert(len(coords)==2)
+    assert(len(coords)== 3)
     l.extend(coords)
     return l
 
@@ -52,5 +56,5 @@ if __name__ == "__main__":
                                      description='Convert simple GeoJSONs to CSVs')
     parser.add_argument('infile', nargs='?', type=argparse.FileType('r'), default = sys.stdin)
     parser.add_argument('outfile', nargs='?', type=argparse.FileType('w'), default = sys.stdout)
-    pargs = parser.parse_args()
+    pargs = parser.parse_args()             
     main(vars(pargs))
