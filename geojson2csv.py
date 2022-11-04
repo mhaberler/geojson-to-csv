@@ -1,38 +1,47 @@
 import json
 import csv
 import argparse
-import sys
 import os
 import datetime
+import brotli
+import logging
+import requests
 
 
-def main(args):
-    fp = args['infile']
-    geojson_data = json.load(fp)
+def decode(args, filename):
+    basename = "output"
+    if filename.startswith("https://") or filename.startswith("http://"):
+        r = requests.get(filename, allow_redirects=True)
+        s = r.content
+        basename = os.path.basename(r.request.path_url).rsplit(".",2)[0]
+    else:
+        with open(filename, "rb") as f:
+            s = f.read()
+        if filename.endswith(".br"):
+            s = brotli.decompress(s)
+        basename = os.path.basename(filename).rsplit(".",2)[0]
+
+    geojson_data = json.loads(s)
     if geojson_data['type'] == 'FeatureCollection':
-        parse_feature_collection(geojson_data['features'], args['outfile'])
+        with open(basename + ".csv", "w") as f:
+            parse_feature_collection(geojson_data['features'], f)
     else:
         print("Can currently only parse FeatureCollections, but I found ", geojson_data['type'], " instead")
 
 
 def parse_feature_collection(features, outfile):
-    # Each feature from the feature collection is a Type: Feature, a bunch of properties, and geometry.
-    # We want to flatten those out
-
-    # create the csv writer object
     csvwriter = csv.writer(outfile, lineterminator=os.linesep)
 
     count = 0
-    # We'd like to save the first header we see, to maintain the exact same ordering, in case
-    # some features change their order (we can't rely on it!)
     header = []
     for feature in features:
-        if feature["geometry"]["type"] != "Point":
+        if feature["geometry"]["type"] != "Point":  # skip LineString in radiosonde ascent
             continue
+        # append a readable timestamp (time is just Unix epoch)
         feature['properties']['datetime'] = datetime.datetime.fromtimestamp(feature['properties']['time'] )
         if count == 0:
             header = list(feature['properties'].keys())
-            # We're going to assume the feature is just a point for this stage
+            # append coords
             header.extend(['lon','lat','alt'])
             csvwriter.writerow(header)
             count += 1
@@ -53,8 +62,16 @@ def feature_to_row(feature, header):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(prog="geojson2csv.py",
-                                     description='Convert simple GeoJSONs to CSVs')
-    parser.add_argument('infile', nargs='?', type=argparse.FileType('r'), default = sys.stdin)
-    parser.add_argument('outfile', nargs='?', type=argparse.FileType('w'), default = sys.stdout)
-    pargs = parser.parse_args()             
-    main(vars(pargs))
+                                     description='Convert GeoJSON to CSV')
+    parser.add_argument("-v", "--verbose", action="store_true", default=False)                                  
+    parser.add_argument("files", nargs="*")
+
+    args = parser.parse_args()         
+    level = logging.WARNING
+    if args.verbose:
+        level = logging.DEBUG
+
+    logging.basicConfig(level=level)
+    for f in args.files:
+        decode(args, f)
+
