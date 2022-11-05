@@ -17,7 +17,11 @@ def decode(filename):
         with open(filename, "rb") as f:
             s = f.read()
         if filename.endswith(".br"):
-            s = brotli.decompress(s)
+            try:
+                s = brotli.decompress(s)
+            except Exception:
+                print(f"{filename} is already decompressed")
+                pass
         basename = os.path.basename(filename).rsplit(".", 2)[0]
 
     geojson_data = json.loads(s)
